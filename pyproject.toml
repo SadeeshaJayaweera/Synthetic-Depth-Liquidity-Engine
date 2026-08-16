@@ -1,0 +1,41 @@
+[tool.poetry]
+name = "synthetic-depth-engine"
+version = "0.1.0"
+description = "Market-liquidity analytics API built on top of Massive.com stock market data"
+authors = ["Synthetic Depth Engine Contributors"]
+readme = "README.md"
+packages = [{include = "synthetic_depth", from = "src"}]
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.13"
+massive = ">=2.0.0"
+duckdb = "^1.1.0"
+pandas = "^2.2.0"
+numpy = "^1.26.0"
+scipy = "^1.12.0"
+fastapi = "^0.115.0"
+uvicorn = {extras = ["standard"], version = "^0.30.0"}
+python-dotenv = "^1.0.1"
+pydantic = "^2.8.0"
+pydantic-settings = "^2.4.0"
+httpx = "^0.27.0"
+dash = "^4.4.1"
+plotly = "^6.9.0"
+apscheduler = "^3.11.3"
+prometheus-client = "^0.26.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.0"
+pytest-asyncio = "^0.24.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = [
+    "tests",
+]
+pythonpath = ["src"]
