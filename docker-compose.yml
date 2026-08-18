@@ -1,0 +1,63 @@
+version: "3.8"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: synthetic_depth_api
+    command: poetry run uvicorn synthetic_depth.api.app:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      - MASSIVE_API_KEY=${MASSIVE_API_KEY:-}
+      - DUCKDB_PATH=/app/data/synthetic_depth.duckdb
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - API_KEYS=${API_KEYS:-dev-test-key-123}
+      - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-120}
+    volumes:
+      - duckdb_data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: synthetic_depth_dashboard
+    command: poetry run python -m synthetic_depth.ingestion.cli dashboard --host 0.0.0.0 --port 8050
+    ports:
+      - "8050:8050"
+    environment:
+      - DUCKDB_PATH=/app/data/synthetic_depth.duckdb
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - duckdb_data:/app/data
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: synthetic_depth_worker
+    command: poetry run python -m synthetic_depth.ingestion.cli worker --symbols ${ACTIVE_SYMBOLS:-AAPL,MSFT,NVDA} --interval 60
+    environment:
+      - MASSIVE_API_KEY=${MASSIVE_API_KEY:-}
+      - DUCKDB_PATH=/app/data/synthetic_depth.duckdb
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - duckdb_data:/app/data
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  duckdb_data:
+    driver: local
