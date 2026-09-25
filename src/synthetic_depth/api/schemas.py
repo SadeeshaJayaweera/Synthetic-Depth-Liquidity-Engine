@@ -50,6 +50,7 @@ class LiquidityScoreComponentBreakdown(BaseModel):
     effective_spread: float = Field(..., description="Average effective spread ($)", examples=[0.0129])
     realized_spread: float = Field(..., description="Average 5-min realized spread ($)", examples=[0.0062])
     vpin: float = Field(..., description="Volume-Synchronized Probability of Informed Trading (toxicity)", examples=[0.0292])
+    predicted_effective_spread: Optional[float] = Field(None, description="ML Predicted effective spread for the next time window ($)", examples=[0.0135])
 
 
 class LiquidityScoreResponse(BaseModel):
@@ -130,6 +131,7 @@ class MetricsHistoryItem(BaseModel):
     realized_spread: float = Field(..., description="5-minute Realized spread ($)")
     vpin: float = Field(..., description="VPIN order flow toxicity")
     liquidity_score: float = Field(..., description="Composite LiquidityScore (0-100)")
+    predicted_effective_spread: Optional[float] = Field(None, description="ML Predicted effective spread ($)")
 
 
 class MetricsHistoryResponse(BaseModel):

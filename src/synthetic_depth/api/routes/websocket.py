@@ -32,6 +32,8 @@ async def live_liquidity_stream(
     storage = DuckDBStorage()
     estimator = SyntheticDepthEstimator(storage=storage)
 
+    from synthetic_depth.microstructure.ml_models import LiquidityPredictor
+    predictor = LiquidityPredictor()
     logger.info(f"WebSocket client connected to live liquidity stream for {sym}")
 
     try:
@@ -44,8 +46,22 @@ async def live_liquidity_stream(
             )
 
             score_val = 50.0
-            if not metrics_df.empty and "liquidity_score" in metrics_df.columns:
-                score_val = float(metrics_df.iloc[0]["liquidity_score"])
+            predicted_spread = None
+            if not metrics_df.empty:
+                row = metrics_df.iloc[0]
+                if "liquidity_score" in metrics_df.columns:
+                    score_val = float(row["liquidity_score"])
+                
+                # Generate ML Prediction
+                features = {
+                    'volume': float(row.get('volume', 0)),
+                    'volatility': float(row.get('volatility', 0)),
+                    'kyle_lambda': float(row["kyle_lambda"]),
+                    'vpin': float(row["vpin"]),
+                    'order_imbalance': float(row.get('order_imbalance', 0)),
+                    'spread': float(row["effective_spread"])
+                }
+                predicted_spread = predictor.predict_next_spread(features)
 
             if book:
                 payload = {
@@ -53,6 +69,7 @@ async def live_liquidity_stream(
                     "symbol": sym,
                     "timestamp": str(book.timestamp),
                     "liquidity_score": round(score_val, 2),
+                    "predicted_effective_spread": predicted_spread,
                     "bid_price": book.bid_price,
                     "ask_price": book.ask_price,
                     "mid_price": book.mid_price,

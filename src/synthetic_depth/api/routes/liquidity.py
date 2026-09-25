@@ -16,6 +16,11 @@ from synthetic_depth.storage.duckdb_layer import DuckDBStorage
 router = APIRouter(prefix="/symbols/{symbol}", tags=["Liquidity Analytics"])
 
 
+from synthetic_depth.microstructure.ml_models import LiquidityPredictor
+
+# Initialize predictor
+predictor = LiquidityPredictor()
+
 @router.get(
     "/liquidity-score",
     response_model=LiquidityScoreResponse,
@@ -49,6 +54,18 @@ def get_liquidity_score(
         )
 
     row = df.iloc[0]
+    
+    # Generate ML Prediction
+    features = {
+        'volume': float(row.get('volume', 0)),
+        'volatility': float(row.get('volatility', 0)),
+        'kyle_lambda': float(row["kyle_lambda"]),
+        'vpin': float(row["vpin"]),
+        'order_imbalance': float(row.get('order_imbalance', 0)),
+        'spread': float(row["effective_spread"])
+    }
+    predicted_spread = predictor.predict_next_spread(features)
+
     return LiquidityScoreResponse(
         symbol=sym,
         timestamp=row["timestamp"],
@@ -60,6 +77,7 @@ def get_liquidity_score(
             effective_spread=float(row["effective_spread"]),
             realized_spread=float(row["realized_spread"]),
             vpin=float(row["vpin"]),
+            predicted_effective_spread=predicted_spread,
         ),
     )
 
@@ -102,8 +120,20 @@ def get_metrics_history(
             detail=f"No historical metrics found for symbol '{sym}' within the specified time range.",
         )
 
-    items = [
-        MetricsHistoryItem(
+    items = []
+    for _, r in df.iterrows():
+        # Generate ML Prediction
+        features = {
+            'volume': float(r.get('volume', 0)),
+            'volatility': float(r.get('volatility', 0)),
+            'kyle_lambda': float(r["kyle_lambda"]),
+            'vpin': float(r["vpin"]),
+            'order_imbalance': float(r.get('order_imbalance', 0)),
+            'spread': float(r["effective_spread"])
+        }
+        pred_spread = predictor.predict_next_spread(features)
+        
+        items.append(MetricsHistoryItem(
             timestamp=r["timestamp"],
             kyle_lambda=float(r["kyle_lambda"]),
             amihud_ratio=float(r["amihud_ratio"]),
@@ -112,9 +142,8 @@ def get_metrics_history(
             realized_spread=float(r["realized_spread"]),
             vpin=float(r["vpin"]),
             liquidity_score=float(r["liquidity_score"]),
-        )
-        for _, r in df.iterrows()
-    ]
+            predicted_effective_spread=pred_spread,
+        ))
 
     return MetricsHistoryResponse(
         symbol=sym,
